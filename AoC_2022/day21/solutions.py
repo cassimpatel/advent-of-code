@@ -7,7 +7,7 @@ ops = {
     '/' : operator.truediv,
 }
 
-def day18_part1(input):
+def day21_part1(input):
     monkeys = {x[:4]: x.split(': ')[-1] for x in input.split('\n')}
 
     def getYellNum(monk):
@@ -25,7 +25,7 @@ def day18_part1(input):
 
     return getYellNum('root')
 
-def day18_part2(input):
+def day21_part2(input):
     monkeys = {x[:4]: x.split(': ')[-1] for x in input.split('\n')}
 
     # gets the path from monk to humn if it exists
@@ -85,8 +85,8 @@ if __name__ == "__main__":
     example_input = open('example.txt', 'r').read()
     test_input = open('input.txt', 'r').read()
 
-    assert day18_part1(example_input) == 152
-    print(day18_part1(test_input))
+    assert day21_part1(example_input) == 152
+    print(day21_part1(test_input))
 
-    assert day18_part2(example_input) == 301
-    print(day18_part2(test_input))
+    assert day21_part2(example_input) == 301
+    print(day21_part2(test_input))
