@@ -1,6 +1,7 @@
 import re
 import math
 from queue import PriorityQueue
+from itertools import permutations
 
 def parseInput(input):
     flow = {}
@@ -64,14 +65,123 @@ def day16_part2(input):
     # additionally decrease time left on start state to 26
     # elephant and self can reach their destinations in different times so track time remaining for both to get to their next goal in the state (whichever comes first, remove same time from the max one too)
     # when considering which cave to go to next, try all choices for both
-    return None
+
+
+    flow, tunnels = parseInput(input)
+    dists = shortestPaths(tunnels)
+
+    # filter down distances to if they connect two >0 caves or start from AA
+    dists = {(a, b):v for ((a, b), v) in dists.items() if (flow[a]*flow[b]>0) or (a=='AA' and flow[b]>0)}
+    flow = {x: flow[x] for x in flow if flow[x] > 0}
+
+    # we will characterise a configuration as time left, my goal valve, elephant goal valve, time till I reach my valve, time till elephant reaches its valve, open valves, past flow
+    initialConfig = (26, 'AA', 'AA', 0, 0, set([]), 0)
+    frontier = [initialConfig]
+    maxFinalFlow = 0
+
+
+    visited_states = set([])
+    come_from = {(26, 'AA', 'AA', 0, 0, frozenset(set([])), 0): None}
+    final_state = None
+
+    num_states = 0
+    
+    while len(frontier) > 0:
+        state = frontier.pop(0)
+        (timeLeft, aGoal, bGoal, aTime, bTime, openV, pastFlow) = state
+        # print(state)
+
+        # if 26 - timeLeft + 1 == 11:
+        #     print(state)
+
+        if (timeLeft, aGoal, bGoal, aTime, bTime, frozenset(openV), pastFlow) in visited_states: continue
+        visited_states.add((timeLeft, aGoal, bGoal, aTime, bTime, frozenset(openV), pastFlow))
+        # visited_states.add((timeLeft, bGoal, aGoal, bTime, aTime, frozenset(openV), pastFlow))
+
+        num_states += 1
+
+        currFlow = sum([flow[x] for x in openV])
+
+        nextCaves = [x for x in flow if x not in openV]
+        if aTime > 0 and aGoal in nextCaves: nextCaves.remove(aGoal)
+        if bTime > 0 and bGoal in nextCaves: nextCaves.remove(bGoal)
+
+        if timeLeft == 0 or (len(nextCaves) == 0 and aTime + bTime == 0):
+            finalFlow = pastFlow + currFlow * timeLeft
+            if finalFlow >= maxFinalFlow: final_state = (timeLeft, aGoal, bGoal, aTime, bTime, frozenset(openV), pastFlow) 
+            maxFinalFlow = max(maxFinalFlow, finalFlow)
+            # print(state)
+            # print('finished')
+
+        
+        perms = set(permutations(nextCaves, 2))
+
+        if len(nextCaves) == 1:
+            # print('caught')
+            aGoalNext, bGoalNext = (nextCaves[0], bGoal) if aTime == 0 else (aGoal, nextCaves[0])
+
+            # aTimeNext = dists[(aGoal, aGoalNext)] + 1 if aTime == 0 else aTime
+            # bTimeNext = dists[(bGoal, bGoalNext)] + 1 if bTime == 0 else bTime
+
+            aTimeNext, bTimeNext = (dists[(aGoal, aGoalNext)] + 1, bTime) if aTime == 0 else (aTime, dists[(bGoal, bGoalNext)] + 1)
+
+            timeToPass = min(aTimeNext, bTimeNext, timeLeft)
+            timeLeftNext = timeLeft - timeToPass
+
+            aTimeNext = max(aTimeNext - timeToPass, 0)
+            bTimeNext = max(bTimeNext - timeToPass, 0)
+
+            flowNext = pastFlow + currFlow * timeToPass
+
+            openVNext = openV.copy()
+            if aTimeNext == 0: openVNext = openVNext.union([aGoalNext])
+            if bTimeNext == 0: openVNext = openVNext.union([bGoalNext])
+ 
+            come_from[(timeLeftNext, aGoalNext, bGoalNext, aTimeNext, bTimeNext, frozenset(openVNext), flowNext)] = (timeLeft, aGoal, bGoal, aTime, bTime, frozenset(openV), pastFlow)
+            stateNext = (timeLeftNext, aGoalNext, bGoalNext, aTimeNext, bTimeNext, openVNext, flowNext)
+            # print('adding state:', stateNext)
+            frontier.append(stateNext)
+
+        for (goal1, goal2) in perms:
+            aGoalNext = goal1 if aTime == 0 else aGoal
+            bGoalNext = goal2 if bTime == 0 else bGoal
+
+            # if aGoalNext == bGoalNext: continue
+
+            aTimeNext = dists[(aGoal, aGoalNext)] + 1 if aTime == 0 else aTime
+            bTimeNext = dists[(bGoal, bGoalNext)] + 1 if bTime == 0 else bTime
+
+            timeToPass = min(aTimeNext, bTimeNext, timeLeft)
+            timeLeftNext = timeLeft - timeToPass
+
+            aTimeNext = max(aTimeNext - timeToPass, 0)
+            bTimeNext = max(bTimeNext - timeToPass, 0)
+
+            flowNext = pastFlow + currFlow * timeToPass
+
+            openVNext = openV.copy()
+            if aTimeNext == 0: openVNext = openVNext.union([aGoalNext])
+            if bTimeNext == 0: openVNext = openVNext.union([bGoalNext])
+ 
+            come_from[(timeLeftNext, aGoalNext, bGoalNext, aTimeNext, bTimeNext, frozenset(openVNext), flowNext)] = (timeLeft, aGoal, bGoal, aTime, bTime, frozenset(openV), pastFlow)
+            stateNext = (timeLeftNext, aGoalNext, bGoalNext, aTimeNext, bTimeNext, openVNext, flowNext)
+            # print('adding state:', stateNext)
+            frontier.append(stateNext)
+    print(maxFinalFlow)
+    
+    while final_state != None:
+        print(final_state)
+        final_state = come_from[final_state]
+
+    return maxFinalFlow
+
 
 if __name__ == "__main__":
     example_input = open('example.txt', 'r').read()
     test_input = open('input.txt', 'r').read()
 
     assert day16_part1(example_input) == 1651
-    print(day16_part1(test_input))
+    # print(day16_part1(test_input))
 
     assert day16_part2(example_input) == 1707
-    # print(day16_part2(test_input)
+    # print(day16_part2(test_input))
