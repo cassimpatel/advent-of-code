@@ -17,9 +17,19 @@ def move_rock(chamber, rock, dir):
         newRock.append((nx, ny))
 
     return newRock, True
-    
-def day17_part1(input):
-    jets = [x for x in input]
+
+def get_chamber_str(chamber, maxHeight):
+    result_str = ''
+
+    for y in range(maxHeight, maxHeight - 25, -1):
+        if y <= 0: break
+        row_vals = ['#' if (x, y) in chamber else '.' for x in range(7)]
+        result_str += ''.join(row_vals) + '\n'
+
+    # print(result_str)
+    return result_str
+
+def getMaxHeight(jets, num_rocks):
     rocks = [
         [(2, 0), (3, 0), (4, 0), (5, 0)],
         [(2, 1), (3, 0), (3, 1), (3, 2), (4, 1)],
@@ -29,29 +39,56 @@ def day17_part1(input):
     ]
     chamber = set([(x, 0) for x in range(7)])
 
-    jet = 0
-    maxHeight = 0
+    jetIndex, rockIndex = 0, 0
+    maxHeight, num_rocks_fallen = 0, 0
+    
+    # vars for loop checking: we save all states until we see one we've visited before
+    num_loops, heightGainPerLoop = 0, 0
+    loop_found = False
+    states = {}
 
-    for i in range(2022):
-        currRock = [(x, maxHeight + 4 + y) for (x, y) in rocks[i % len(rocks)]]
-        settled = False
+    while num_rocks_fallen < num_rocks:
+        rockIndex = num_rocks_fallen % len(rocks)
+        currRock = [(x, y + maxHeight + 4) for (x, y) in rocks[rockIndex]]
+        moved = True
 
-        while not settled:
-            currJet = jets[jet]
-            
+        while moved:
+            currJet = jets[jetIndex]
             currRock, _ = move_rock(chamber, currRock, currJet)
             currRock, moved = move_rock(chamber, currRock, 'v')
 
             if not moved:
-                settled = True
                 chamber.update(currRock)
-                maxHeight = max(maxHeight, max([y for (x, y) in currRock]))
+                maxHeight = max([maxHeight] + [y for (x, y) in currRock])
+                num_rocks_fallen += 1
+                # print(num_rocks_fallen, maxHeight)
 
-            jet = (jet + 1) % len(jets)
-    return maxHeight
+                state = (rockIndex, jetIndex, get_chamber_str(chamber, maxHeight))
+                if not loop_found and state in states:
+                    (prevMaxHeight, prevNumRocks) = states[state]
+                    loop_found = True
+                    
+                    # calc number of rocks fallen for the loop to occur, and how much higher the chamber is
+                    # we can then jump to the last occurrence of the loop and continue from there
+                    loopLen = num_rocks_fallen - prevNumRocks
+                    heightGainPerLoop = maxHeight - prevMaxHeight
+                    num_loops = (num_rocks - num_rocks_fallen) // loopLen
+                    num_rocks_fallen += num_loops * loopLen
+                else: states[state] = (maxHeight, num_rocks_fallen)
+
+            jetIndex = (jetIndex + 1) % len(jets)
+
+    # add on the height gained during each of the skipped loops
+    return maxHeight + heightGainPerLoop * num_loops
+    
+def day17_part1(input):
+    jets = [x for x in input]
+
+    return getMaxHeight(jets, 2022)
 
 def day17_part2(input):
-    return None
+    jets = [x for x in input]
+    return getMaxHeight(jets, 1000000000000)
 
 if __name__ == "__main__":
     example_input = open('example.txt', 'r').read()
@@ -60,5 +97,5 @@ if __name__ == "__main__":
     assert day17_part1(example_input) == 3068
     print(day17_part1(test_input))
 
-    # assert day17_part2(example_input) == 1514285714288
-    # print(day17_part2(test_input)
+    assert day17_part2(example_input) == 1514285714288
+    print(day17_part2(test_input))
