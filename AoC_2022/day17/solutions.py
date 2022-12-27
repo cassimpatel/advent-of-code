@@ -5,7 +5,6 @@ def move_rock(chamber, rock, dir):
 
     x = [x for (x, y) in rock]
     minX, maxX = min(x), max(x)
-
     newRock = []
 
     if dir == '<' and minX == 0: return rock, False
@@ -83,7 +82,6 @@ def getMaxHeight(jets, num_rocks):
     
 def day17_part1(input):
     jets = [x for x in input]
-
     return getMaxHeight(jets, 2022)
 
 def day17_part2(input):
