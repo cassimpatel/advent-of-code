@@ -10,7 +10,17 @@ def parse_input(input):
         blueprints.append(blueprint)
 
     return blueprints
-    
+
+# produces a state tuple given time remaining value and a resources dictionary
+def generate_state(timeRem, resources):
+    return (timeRem, resources['ore'], resources['oreR'], resources['cla'], resources['claR'], resources['obs'], resources['obsR'], resources['geo'], resources['geoR'])
+
+# returns the sum of integers m, ..., n - 1 (equal to sum(range(m, n)))
+def seq_sum(m, n):
+    n -= 1
+    return int(0.5 * (n + m) * (n - m + 1))
+
+# find the maximal geodes that can be mined using blueprint in search_time via DFS
 def get_max_geodes(blueprint, search_time):
     # we can calculate the maximum of each resource needed for any robot creation
     # then, we shouldn't ever create more robots than the max for their type (limiting search space)
@@ -18,8 +28,6 @@ def get_max_geodes(blueprint, search_time):
     for rob in blueprint:
         for res in blueprint[rob]:
             max_required[res] = max(max_required[res],  blueprint[rob][res])
-
-    ore_required = {rob: blueprint[rob]['ore'] for rob in blueprint}
 
     # represent states as (timeRemaining, ore, oreR, cla, claR, obs, obsR, geo, geoR)
     start_state = (search_time, 0, 1, 0, 0, 0, 0, 0, 0)
@@ -33,87 +41,66 @@ def get_max_geodes(blueprint, search_time):
         # print(curr_state)
         
         if timeRem == 1:
-            # no more time left
-            # print(curr_state)
-            # print(geo)
-            # print('reached a final state')
+            # no more time left: calculate geode output and compare to max
             max_geodes = max(max_geodes, geo + geoR)
             continue
-        elif geo + sum(range(geoR, geoR + timeRem)) < max_geodes:
-            # print('pruned due to not meeting current best')
+        elif oreR >= blueprint['geoR']['ore'] and obsR >= blueprint['geoR']['obs']:
+            # we produce enough ore and obs to make a geoR every remaining turn: calc potential geo output and prune
+            potential_geo = geo + seq_sum(geoR, geoR + timeRem)
+            max_geodes = max(max_geodes, potential_geo)
+            continue
+        elif geo + seq_sum(geoR, geoR + timeRem) < max_geodes:
             # even creating a geoR every turn we can't beat the current max: prune this state
             continue
-        elif oreR >= blueprint['geoR']['ore'] and obsR >= blueprint['geoR']['obs']:
-            # we have enough to make a geoR every remaining turn: calc potential geo output and prune
-            potential_geo = geo + sum(range(geoR, geoR + timeRem))
-            max_geodes = max(max_geodes, potential_geo)
-            # print('calculated potential best score due to meeting geoR spec')
-            continue
         elif oreR > max_required['ore'] or claR > max_required['cla'] or obsR > max_required['obs']:
-            # unnecessarily creating extra robots than required: prune this state
-            # print('pruned due to creating more tahn needed')
+            # we are unnecessarily creating extra robots than required: prune this state
             continue
 
-        # generate neighbours: for each, set come_from_state
-        potential_robots = [rob for rob in blueprint if False not in [resources[y] >= blueprint[rob][y] for y in blueprint[rob]]][::-1]
+        # calculate robots that can be produced given current resources
+        potential_robots = [rob for rob in blueprint if False not in [resources[y] >= blueprint[rob][y] for y in blueprint[rob]]]
+        # if we can make a geoR this is the optimal move: don't consider other options
+        if 'geoR' in potential_robots: potential_robots = ['geoR']
 
-        # update resource counts
+        # update resource counts according to number of robots
         resources = {x: resources[x] + resources[x + 'R'] if x in ['ore', 'cla', 'obs', 'geo'] else resources[x] for x in resources}
 
+        # there are no robot that can be made: new state is just waiting and doing nothing
         if len(potential_robots) == 0:
-            next_state = (timeRem - 1, resources['ore'], resources['oreR'], resources['cla'], resources['claR'], resources['obs'], resources['obsR'], resources['geo'], resources['geoR'])
-            frontier.insert(0, next_state)
-            come_from_state[next_state] = curr_state
-
-        if 'geoR' in potential_robots:
-            next_resources = resources.copy()
-            next_resources['geoR'] += 1
-            for res in blueprint['geoR']:
-                next_resources[res] -= blueprint['geoR'][res]
-            next_state = (timeRem - 1, next_resources['ore'], next_resources['oreR'], next_resources['cla'], next_resources['claR'], next_resources['obs'], next_resources['obsR'], next_resources['geo'], next_resources['geoR'])
+            next_state = generate_state(timeRem-1, resources)
             if next_state in come_from_state: continue
-            frontier.insert(0, next_state)
             come_from_state[next_state] = curr_state
+            frontier.insert(0, next_state)
             continue
 
-
-        # append neighbours
+        # for each robot, make a new resources copy, deduct relevant resources, append new state
         for potential_rob in potential_robots:
             next_resources = resources.copy()
             next_resources[potential_rob] += 1
             for res in blueprint[potential_rob]:
                 next_resources[res] -= blueprint[potential_rob][res]
-            next_state = (timeRem - 1, next_resources['ore'], next_resources['oreR'], next_resources['cla'], next_resources['claR'], next_resources['obs'], next_resources['obsR'], next_resources['geo'], next_resources['geoR'])
+            next_state = generate_state(timeRem-1, next_resources)
             if next_state in come_from_state: continue
             frontier.insert(0, next_state)
             come_from_state[next_state] = curr_state
         
-        for potential_rob in potential_robots:
-            if ore_required[potential_rob] <= max(ore_required.values()):
-                next_state = (timeRem - 1, resources['ore'], resources['oreR'], resources['cla'], resources['claR'], resources['obs'], resources['obsR'], resources['geo'], resources['geoR'])
-                frontier.insert(0, next_state)
-                come_from_state[next_state] = curr_state
-            break
-    print(max_geodes)
+        # if there is a robot that could be created in the future using more ore than we have now (we can't create it this turn) then add waiting as a possibility
+        max_next_ore_required = max([blueprint[rob]['ore'] for rob in potential_robots])
+        if max_next_ore_required == max_required['ore']: continue
+        next_state = generate_state(timeRem-1, resources)
+        if next_state in come_from_state: continue
+        frontier.insert(0, next_state)
+        come_from_state[next_state] = curr_state
+
     return max_geodes
     
 def day19_part1(input):
-    # separate out a function to calculate the score for a single blueprint so we can iterate over blueprints easily
-    # this function will do a simple DFS to maximise the score, with agressive pruning where possible
-    # we should never have more robots of any given type than the maximum required of that resource for any robot creation (as we can only make one robot a round and resources replenish)
-    # if we can make a geode robot that is the optimal move: we shouldn't explore other options
-    # taking the current best score, if we can't do better than it in the remaining time (assume making a geode robot every remaining turn) that node has no potential, pune it
-    # make sure to keep a dict of where nodes have been visited from so you can backtrack from the optimal solution
-    # if you can make a robot, only consider waiting if waiting means you could build a different robot in the future (b has cost strictly more than a)
-    
     blueprints = parse_input(input)
     result = 0
 
     for i, blueprint in enumerate(blueprints):
-        quality_level = (i + 1) * get_max_geodes(blueprint, 24)
-        print('blueprint {}: quality_level {}'.format(i+1, quality_level))
-        result += quality_level
-        # break
+        max_geodes = get_max_geodes(blueprint, 24)
+        # print('blueprint {}: max geodes {}'.format(i+1, max_geodes))
+        result += (i + 1) * max_geodes
 
     return result
 
@@ -122,11 +109,9 @@ def day19_part2(input):
     result = 1
 
     for i, blueprint in enumerate(blueprints):
-        print('blueprint', i + 1)
-        quality_level = get_max_geodes(blueprint, 32)
-        print('quality_level', quality_level)
-        result *= quality_level
-        # break
+        max_geodes = get_max_geodes(blueprint, 32)
+        # print('blueprint {}: max geodes {}'.format(i+1, max_geodes))
+        result *= max_geodes
 
     return result
 
@@ -134,8 +119,8 @@ if __name__ == "__main__":
     example_input = open('example.txt', 'r').read()
     test_input = open('input.txt', 'r').read()
 
-    # assert day19_part1(example_input) == 33
-    # print(day19_part1(test_input))
+    assert day19_part1(example_input) == 33
+    print(day19_part1(test_input))
 
     assert day19_part2(example_input) == 3472
     print(day19_part2(test_input))
