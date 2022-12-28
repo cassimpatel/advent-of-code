@@ -22,8 +22,7 @@ def seq_sum(m, n):
 
 # find the maximal geodes that can be mined using blueprint in search_time via DFS
 def get_max_geodes(blueprint, search_time):
-    # we can calculate the maximum of each resource needed for any robot creation
-    # then, we shouldn't ever create more robots than the max for their type (limiting search space)
+    # calculate the maximum of each resource needed for any robot creation (for pruning)
     max_required = {'ore': 0, 'cla': 0, 'obs': 0}
     for rob in blueprint:
         for res in blueprint[rob]:
@@ -53,12 +52,12 @@ def get_max_geodes(blueprint, search_time):
             # even creating a geoR every turn we can't beat the current max: prune this state
             continue
         elif oreR > max_required['ore'] or claR > max_required['cla'] or obsR > max_required['obs']:
-            # we are unnecessarily creating extra robots than required: prune this state
+            # we are unnecessarily creating more robots than required: prune this state
             continue
 
         # calculate robots that can be produced given current resources
         potential_robots = [rob for rob in blueprint if False not in [resources[y] >= blueprint[rob][y] for y in blueprint[rob]]]
-        # if we can make a geoR this is the optimal move: don't consider other options
+        # if we can make a geoR, this is the optimal move: don't consider other options
         if 'geoR' in potential_robots: potential_robots = ['geoR']
 
         # update resource counts according to number of robots
