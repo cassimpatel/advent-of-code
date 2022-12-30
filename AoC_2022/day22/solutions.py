@@ -35,20 +35,50 @@ def cube_wrap_around(grid, x, y, dirIndex):
     faceX, faceY = x // 50, y // 50
     offsetX, offsetY = x % 50, y % 50
 
+    # TODO: a dictionary mapping (faceX, faceY, dirIndex) -> (nx, ny, newDirIndex) to avoid using lengthy ifs
+
     # looking at each faces 1...6 in https://imgur.com/a/K9Of42d for reference
     # for each of these faces, considering directions from this face to the void
-    if (faceX, faceY)== (2, 0):
-        pass
-    elif (faceX, faceY)== (1, 0):
-        pass
-    elif (faceX, faceY)== (1, 1):
-        pass
-    elif (faceX, faceY)== (1, 2):
-        pass
-    elif (faceX, faceY)== (0, 2):
-        pass
-    elif (faceX, faceY)== (0, 3):
-        pass
+    if (faceX, faceY) == (2, 0):
+        # face 1: can go >, v or ^
+        if dirIndex == 0:
+            nx, ny, newDirIndex = 99, 99 + (50 - offsetY), 2
+        elif dirIndex == 1:
+            nx, ny, newDirIndex = 99, 50 + (offsetX), 2
+        elif dirIndex == 3:
+            nx, ny, newDirIndex = offsetX, 199, 3
+    elif (faceX, faceY) == (1, 0):
+        # face 2: can go < or ^
+        if dirIndex == 2:
+            nx, ny, newDirIndex = 0, 99 + (50 - offsetY), 0
+        elif dirIndex == 3:
+            nx, ny, newDirIndex = 0, 150 + offsetX, 0
+    elif (faceX, faceY) == (1, 1):
+        # face 3: can go > or <
+        if dirIndex == 0:
+            nx, ny, newDirIndex = 100 + offsetY, 49, 3
+        elif dirIndex == 2:
+            nx, ny, newDirIndex = offsetY, 100, 1
+    elif (faceX, faceY) == (1, 2):
+        # face 4: can go > or v
+        if dirIndex == 0:
+            nx, ny, newDirIndex = 0, 0, 0
+        elif dirIndex == 1:
+            nx, ny, newDirIndex = 0, 0, 0
+    elif (faceX, faceY) == (0, 2):
+        # face 5: can go < or ^
+        if dirIndex == 2:
+            nx, ny, newDirIndex = 0, 0, 0
+        elif dirIndex == 3:
+            nx, ny, newDirIndex = 0, 0, 0
+    elif (faceX, faceY) == (0, 3):
+        # face 6: can go >, v or <
+        if dirIndex == 0:
+            nx, ny, newDirIndex = 0, 0, 0
+        elif dirIndex == 1:
+            nx, ny, newDirIndex = 0, 0, 0
+        elif dirIndex == 2:
+            nx, ny, newDirIndex = 0, 0, 0
 
     # mapping back to grid indices with padding
     nx, ny = nx + 1, ny + 1
