@@ -34,14 +34,17 @@ def day16_part1(input):
     # filter down distances to if they connect two >0 caves or start from AA
     dists = {(a, b):v for ((a, b), v) in dists.items() if (flow[a]*flow[b]>0) or (a=='AA' and flow[b]>0)}
     flow = {x: flow[x] for x in flow if flow[x] > 0}
+    # for pruning later: calculate total flow over all valves
+    full_flow = sum(flow.values())
 
     # we will characterise a configuration as time left, current loc, open valves, current flow since start
-    initialConfig = (30, 'AA', set([]), 0)
+    initialConfig = (30, 'AA', frozenset([]), 0)
     frontier = [initialConfig]
+    come_from = {initialConfig: None}
     maxFinalFlow = 0
-    
+
     while len(frontier) > 0:
-        (timeLeft, loc, openV, pastFlow) = frontier.pop(0)
+        (timeLeft, loc, openV, pastFlow) = curr_state = frontier.pop(0)
         # print(timeLeft, loc, openV, pastFlow)
 
         currFlow = sum([flow[x] for x in openV])
@@ -53,10 +56,17 @@ def day16_part1(input):
             maxFinalFlow = max(newFlow, maxFinalFlow)
             continue
 
+        if pastFlow + full_flow * timeLeft < maxFinalFlow:
+            continue
+
         for nxt in nextCaves:
             newTimeLeft = timeLeft - dists[(loc, nxt)] - 1
             newFlow = pastFlow + currFlow * (dists[(loc, nxt)] + 1)
-            frontier.insert(0, (newTimeLeft, nxt, openV.union([nxt]), newFlow))
+            new_state = (newTimeLeft, nxt, frozenset(openV.union([nxt])), newFlow)
+
+            if new_state in come_from: continue
+            come_from[new_state] = curr_state
+            frontier.insert(0, new_state)
 
     return maxFinalFlow
 
@@ -181,7 +191,7 @@ if __name__ == "__main__":
     test_input = open('input.txt', 'r').read()
 
     assert day16_part1(example_input) == 1651
-    # print(day16_part1(test_input))
+    print(day16_part1(test_input))
 
-    assert day16_part2(example_input) == 1707
+    # assert day16_part2(example_input) == 1707
     # print(day16_part2(test_input))
